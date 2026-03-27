@@ -26,7 +26,7 @@ const FeatureCard = ({ icon: Icon, title, description }) => (
 const Home = () => {
   return (
     <div className="min-h-screen bg-[#140800] text-white selection:bg-[#f97316]/30">
-      
+
       {/* 1. HERO SECTION */}
       <section className="relative pt-32 pb-20 px-6 max-w-7xl mx-auto flex flex-col items-center text-center">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-3/4 h-64 bg-[#f97316] opacity-10 blur-[120px] rounded-full pointer-events-none"></div>
@@ -37,12 +37,11 @@ const Home = () => {
             <span className="w-2 h-2 bg-[#f97316] rounded-full animate-pulse"></span>
             <span className="text-xs font-semibold tracking-wider text-[#9CA3AF]">NEXUS-FOUNDRY PLATFORM</span>
           </div>
-          
-          <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6">
-            AI-Powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] to-[#ef4444]">Digital Twin</span><br/>
+
+          <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6"><span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] to-[#ef4444]">Digital Twin</span><br />
             for Foundry Prediction
           </h1>
-          
+
           <p className="text-[#9CA3AF] text-lg md:text-xl max-w-2xl mx-auto mb-10">
             Real-time furnace monitoring • Anomaly detection • What-if simulation
           </p>
@@ -61,19 +60,19 @@ const Home = () => {
           <h2 className="text-3xl font-bold">The Cost of Blind Operations</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <ProblemCard 
-            icon={AlertTriangle} 
-            title="Unpredicted Downtime" 
+          <ProblemCard
+            icon={AlertTriangle}
+            title="Unpredicted Downtime"
             description="Equipment failures occur without warning, halting production lines and causing massive revenue loss."
           />
-          <ProblemCard 
-            icon={Clock} 
-            title="Late Defect Discovery" 
+          <ProblemCard
+            icon={Clock}
+            title="Late Defect Discovery"
             description="Defects are only found after cooling, when the metal is set and intervention is completely impossible."
           />
-          <ProblemCard 
-            icon={Hammer} 
-            title="Reactive Management" 
+          <ProblemCard
+            icon={Hammer}
+            title="Reactive Management"
             description="Fixing failures after they happen rather than preventing them limits scaling and increases overhead."
           />
         </div>
@@ -100,8 +99,8 @@ const Home = () => {
             </div>
           </motion.div>
           <div className="relative">
-             <div className="absolute inset-0 bg-gradient-to-tr from-[#f97316]/20 to-[#f97316]/20 blur-3xl"></div>
-             <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop" alt="Foundry Worker Dashboard" className="rounded-xl border border-gray-700 relative z-10 opacity-80" />
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#f97316]/20 to-[#f97316]/20 blur-3xl"></div>
+            <img src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=1000&auto=format&fit=crop" alt="Foundry Worker Dashboard" className="rounded-xl border border-gray-700 relative z-10 opacity-80" />
           </div>
         </div>
       </section>
@@ -156,7 +155,7 @@ const Home = () => {
           </div>
         </div>
         <p className="text-[#9CA3AF] text-sm">
-          NEXUS-Foundry | AI-Powered Digital Twin Platform<br/>
+          NEXUS-Foundry | AI-Powered Digital Twin Platform<br />
           © 2026 | Team NEXUS
         </p>
       </footer>

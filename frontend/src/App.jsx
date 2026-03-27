@@ -18,9 +18,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/dashboard" element={
-              activePage === 'dashboard' ? 
-                <Dashboard key="dashboard" setActivePage={setActivePage} hasAnomaly={hasAnomaly} setHasAnomaly={setHasAnomaly} /> : 
-                <AlertDetails key="alert" onBack={() => setActivePage('dashboard')} />
+              <Dashboard key="dashboard" setActivePage={setActivePage} hasAnomaly={hasAnomaly} setHasAnomaly={setHasAnomaly} />
             } />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

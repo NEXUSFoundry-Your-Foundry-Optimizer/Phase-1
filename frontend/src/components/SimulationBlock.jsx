@@ -40,7 +40,7 @@ const SimulationBlock = ({ inputs, setInputs, isSimulating, simResult, handleSim
             <span>Vibration</span>
             <span className="text-white">{inputs.vibration.toFixed(3)} g</span>
           </label>
-          <input type="range" name="vibration" min="0.01" max="0.1" step="0.001" value={inputs.vibration} onChange={handleInputChange} className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-[#f97316]" />
+          <input type="range" name="vibration" min="0.1" max="3.0" step="0.01" value={inputs.vibration} onChange={handleInputChange} className="w-full h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-[#f97316]" />
         </div>
         <div>
           <label className="flex justify-between text-[10px] uppercase text-[#9CA3AF] mb-1 font-bold tracking-wider">

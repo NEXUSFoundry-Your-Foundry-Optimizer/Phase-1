@@ -5,6 +5,7 @@ import ArchitectureFlow from './ArchitectureFlow';
 import MeltingTwin3D from './MeltingTwin3D';
 import AnalyticsPanel from './AnalyticsPanel';
 import SimulationBlock from './SimulationBlock';
+import AlertDetails from './AlertDetails';
 
 const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
   // Mock realtime data
@@ -19,8 +20,8 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
   const [simInputs, setSimInputs] = useState({
     temp: 1400,
     power: 850,
-    vibration: 0.030,
-    lining: 75
+    vibration: 0.80,
+    lining: 95
   });
   
   const [isSimulating, setIsSimulating] = useState(false);
@@ -52,11 +53,11 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
     } catch (error) {
       console.error("Simulation API Error:", error);
       setTimeout(() => {
-        const fakeError = simInputs.temp > 1430 || simInputs.lining < 65 ? 1.25 : 0.45;
-        const fakeStatus = fakeError > 0.7796 ? "anomaly" : "normal";
+        const fakeError = simInputs.temp > 1430 || simInputs.lining < 65 ? 1.50 : 0.45;
+        const fakeStatus = fakeError > 1.0645 ? "anomaly" : "normal";
         setSimResult({
           afterError: fakeError,
-          threshold: 0.7796,
+          threshold: 1.0645,
           status: fakeStatus
         });
         setHasAnomaly(fakeStatus === 'anomaly');
@@ -88,19 +89,52 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
     return () => clearInterval(interval);
   }, [isStreaming, streamIndex, setHasAnomaly]);
 
-  const chartData = {
-    labels: Array.from({length: 24}, (_, i) => `${i}:00`),
-    error: Array.from({length: 24}, (_, i) => i < 18 ? 0.03 + Math.random()*0.02 : 0.05 + Math.pow(i-17, 2)*0.004),
-    temp: Array.from({length: 24}, (_, i) => i < 16 ? 1382 + Math.random()*5 : 1382 + Math.pow(i-15, 1.3)*8)
-  };
-  
-  // Dynamic Chart Binding: 
-  // Instantly reflect the slider value for Temperature in the chart
-  chartData.temp[23] = simInputs.temp;
-  // If simulation was run, map the actual response error, otherwise map a fast dynamic approximation
-  chartData.error[23] = simResult ? simResult.afterError : (simInputs.temp > 1430 ? 0.15 + (simInputs.temp - 1430)*0.01 : 0.05);
+  // Separate Telemetry Histories
+  const [simHistory, setSimHistory] = useState({
+    error: Array(24).fill(0.15),
+    temp: Array(24).fill(1385),
+    power: Array(24).fill(860),
+    vibration: Array(24).fill(0.032),
+    labels: Array.from({length: 24}, (_, i) => `${i}:00`)
+  });
 
-  // Simulate real-time feeling
+  const [streamHistory, setStreamHistory] = useState({
+    error: Array(24).fill(0.15),
+    temp: Array(24).fill(1385),
+    power: Array(24).fill(860),
+    vibration: Array(24).fill(0.032),
+    labels: Array.from({length: 24}, (_, i) => `${i}:00`)
+  });
+
+  // Update stream history
+  useEffect(() => {
+    if (streamData) {
+      setStreamHistory(prev => ({
+        ...prev,
+        error: [...prev.error.slice(1), streamData.error],
+        temp: [...prev.temp.slice(1), streamData.row.melt_temp],
+        power: [...prev.power.slice(1), streamData.row.power_kw || 850],
+        vibration: [...prev.vibration.slice(1), streamData.row.vibration_g || 0.03]
+      }));
+    }
+  }, [streamData]);
+
+  // Update sim history
+  useEffect(() => {
+    if (simResult) {
+      setSimHistory(prev => ({
+        ...prev,
+        error: [...prev.error.slice(1), simResult.afterError],
+        temp: [...prev.temp.slice(1), simInputs.temp],
+        power: [...prev.power.slice(1), simInputs.power],
+        vibration: [...prev.vibration.slice(1), simInputs.vibration]
+      }));
+    }
+  }, [simResult, simInputs]);
+
+  const chartData = activeTab === 'manual' ? simHistory : streamHistory;
+
+  // Simulate real-time feeling for header metrics only
   useEffect(() => {
     const interval = setInterval(() => {
       setMetrics(prev => ({
@@ -134,6 +168,12 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
         >
           LIVE DATASET STREAM
         </button>
+        <button 
+          onClick={() => setActiveTab('alert')}
+          className={`pb-4 px-2 text-sm font-bold transition-all ${activeTab === 'alert' ? 'text-[#f97316] border-b-2 border-[#f97316]' : 'text-gray-500 hover:text-white'}`}
+        >
+          ALERT LOGS
+        </button>
       </div>
 
       <ArchitectureFlow />
@@ -151,7 +191,7 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
             </span>
           </div>
           <button 
-            onClick={() => setActivePage('alert')}
+            onClick={() => setActiveTab('alert')}
             className="bg-[#ef4444] hover:bg-red-500 text-white font-bold py-2 px-6 rounded transition shadow-lg shadow-red-900/50"
           >
             {activeTab === 'stream' ? 'Review Log' : 'View Full Analysis'}
@@ -159,12 +199,12 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
         </motion.div>
       )}
 
-      {activeTab === 'manual' ? (
+      {activeTab === 'manual' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <AnalyticsPanel 
               errorScore={chartData.error[23].toFixed(4)} 
-              threshold={simResult ? simResult.threshold : 0.7796} 
+              threshold={simResult ? simResult.threshold : 1.0645} 
               chartData={chartData} 
             />
             <SimulationBlock 
@@ -181,7 +221,9 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
             <MeltingTwin3D temp={simInputs.temp} anomaly={simResult ? simResult.status === 'anomaly' : hasAnomaly} />
           </div>
         </div>
-      ) : (
+      )}
+      
+      {activeTab === 'stream' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-[#281105] border border-gray-800 rounded-xl p-6 relative overflow-hidden">
@@ -240,7 +282,7 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
 
             <AnalyticsPanel 
               errorScore={streamData ? streamData.error.toFixed(4) : "0.0000"} 
-              threshold={streamData ? streamData.threshold : 0.7796} 
+              threshold={streamData ? streamData.threshold : 1.0645} 
               chartData={chartData} 
             />
           </div>
@@ -252,6 +294,10 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
             />
           </div>
         </div>
+      )}
+
+      {activeTab === 'alert' && (
+        <AlertDetails onBack={() => setActiveTab('stream')} />
       )}
 
       {/* Disabled Future Modules */}

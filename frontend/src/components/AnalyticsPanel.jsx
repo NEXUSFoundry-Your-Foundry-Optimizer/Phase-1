@@ -78,46 +78,75 @@ const AnalyticsPanel = ({ errorScore, threshold, chartData }) => {
     }]
   };
 
+  const powerTrendData = {
+    labels: chartData.labels,
+    datasets: [{
+      label: 'Power kW',
+      data: chartData.power || Array(chartData.labels.length).fill(850),
+      borderColor: '#f59e0b',
+      tension: 0.3,
+      pointRadius: 0,
+      fill: false
+    }]
+  };
+
+  const vibTrendData = {
+    labels: chartData.labels,
+    datasets: [{
+      label: 'Vibration g',
+      data: chartData.vibration || Array(chartData.labels.length).fill(0.03),
+      borderColor: '#00AFA3',
+      tension: 0.3,
+      pointRadius: 0,
+      fill: false
+    }]
+  };
+
+  const statusColor = errorScore > threshold ? '#ef4444' : (errorScore > 0.4 ? '#f59e0b' : '#22c55e');
+
   return (
     <div className="space-y-6">
       <div className="bg-[#281105] rounded-xl border border-gray-800 p-6 flex flex-col justify-between glass-card">
         <div>
           <h3 className="text-lg font-bold border-b border-gray-700/50 pb-2 mb-4 flex items-center">
             <BrainCircuit className="text-[#f97316] mr-2 w-5 h-5" />
-            Diagnostic Details
+            Adaptive Diagnostic Intelligence
           </h3>
           <div className="flex items-center space-x-3 mb-6">
-            <div className="p-2 bg-[#ef4444]/10 rounded-full">
-              <AlertCircle className="text-[#ef4444] w-6 h-6" />
+            <div className={`p-2 rounded-full ${parseFloat(errorScore) > threshold ? 'bg-[#ef4444]/10' : 'bg-[#22c55e]/10'}`}>
+              <AlertCircle className={`${parseFloat(errorScore) > threshold ? 'text-[#ef4444]' : 'text-[#22c55e]'} w-6 h-6`} />
             </div>
             <div>
-              <p className="text-white font-semibold">Gradual Drift — Lining Degradation</p>
-              <p className="text-[#9CA3AF] text-xs">Detected now • Confidence: 99.6%</p>
+              <p className="text-white font-semibold">
+                {parseFloat(errorScore) > threshold ? 'Anomaly Detected' : (parseFloat(errorScore) > 0.4 ? 'Operating Warning' : 'Safe Operation')}
+              </p>
+              <p className="text-[#9CA3AF] text-xs">LSTM-AE Reconstruction Metric • Threshold: {threshold}</p>
             </div>
           </div>
           
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-[#9CA3AF]">Anomaly Threshold</span>
+                <span className="text-[#9CA3AF]">Confidence Boundary</span>
                 <span className="font-mono text-white">{threshold}</span>
               </div>
               <div className="w-full bg-[#140800] rounded-full h-1.5 border border-gray-800">
-                <div className="bg-gray-500 h-1.5 rounded-full" style={{ width: '35%' }}></div>
+                <div className="bg-orange-500/50 h-1.5 rounded-full" style={{ width: '50%' }}></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-[#ef4444] font-semibold">Current Error Score</span>
-                <span className="font-mono text-[#ef4444] font-bold">{errorScore} ({(parseFloat(errorScore)/threshold).toFixed(2)}x)</span>
+                <span style={{ color: statusColor }} className="font-semibold uppercase tracking-widest text-[10px]">Current Health Metric</span>
+                <span className="font-mono font-bold" style={{ color: statusColor }}>{errorScore}</span>
               </div>
-              <div className="w-full bg-[#140800] rounded-full h-1.5 relative border border-gray-800">
+              <div className="w-full bg-[#140800] rounded-full h-2 relative border border-gray-800 overflow-hidden">
                 <motion.div 
                   initial={{ width: 0 }}
-                  animate={{ width: `${Math.min((parseFloat(errorScore)/0.2) * 100, 100)}%` }}
-                  className="bg-[#ef4444] h-1.5 rounded-full absolute top-0 left-0 z-10 pulse-red shadow-[0_0_10px_#ef4444]"
+                  animate={{ width: `${Math.min((parseFloat(errorScore)/(threshold * 2)) * 100, 100)}%` }}
+                  className="h-full rounded-full absolute top-0 left-0 z-10 transition-colors duration-500"
+                  style={{ backgroundColor: statusColor, boxShadow: `0 0 15px ${statusColor}66` }}
                 ></motion.div>
-                <div className="absolute top-0 h-3 w-0.5 bg-white -mt-[3px] z-20" style={{ left: `${(threshold/0.2) * 100}%` }}></div>
+                <div className="absolute top-0 h-full w-0.5 bg-white z-20" style={{ left: '50%' }}></div>
               </div>
             </div>
           </div>
@@ -125,13 +154,21 @@ const AnalyticsPanel = ({ errorScore, threshold, chartData }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-64">
-          <h3 className="text-xs font-bold text-[#9CA3AF] mb-4 uppercase">LSTM-AE Reconstruction Error</h3>
-          <Line options={chartOptions} data={errorData} />
+        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-56">
+          <h3 className="text-[10px] font-bold text-[#9CA3AF] mb-4 uppercase tracking-widest">Reconstruction Error</h3>
+          <div className="h-40"><Line options={chartOptions} data={errorData} /></div>
         </div>
-        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-64">
-          <h3 className="text-xs font-bold text-[#9CA3AF] mb-4 uppercase">Temperature Trend (°C)</h3>
-          <Line options={chartOptions} data={tempTrendData} />
+        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-56">
+          <h3 className="text-[10px] font-bold text-[#9CA3AF] mb-4 uppercase tracking-widest">Melt Temperature (°C)</h3>
+          <div className="h-40"><Line options={chartOptions} data={tempTrendData} /></div>
+        </div>
+        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-56">
+          <h3 className="text-[10px] font-bold text-[#9CA3AF] mb-4 uppercase tracking-widest">Induction Power (kW)</h3>
+          <div className="h-40"><Line options={chartOptions} data={powerTrendData} /></div>
+        </div>
+        <div className="bg-[#281105] rounded-xl border border-gray-800 p-4 h-56">
+          <h3 className="text-[10px] font-bold text-[#9CA3AF] mb-4 uppercase tracking-widest">Sensor Vibration (g)</h3>
+          <div className="h-40"><Line options={chartOptions} data={vibTrendData} /></div>
         </div>
       </div>
     </div>

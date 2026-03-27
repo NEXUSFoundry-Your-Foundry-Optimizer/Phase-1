@@ -17,8 +17,10 @@ except ImportError:
 
 app = FastAPI(title="NEXUS-Foundry Melting Twin Backend")
 
-# Global dataset variable
+# Global dataset and alert history variables
 dataset = None
+alert_history = []
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'alerts.log')
 
 app.add_middleware(
     CORSMiddleware,
@@ -40,6 +42,27 @@ threshold = 0.779624
 # to represent a stable state, since it's a "what-if" static prediction.
 SEQUENCE_LENGTH = 30 
 NUM_FEATURES = 6
+
+def log_alert(data, error, status):
+    import datetime
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = {
+        "timestamp": timestamp,
+        "melt_temp": data.get('melt_temp') or data.get('temp'),
+        "power_kw": data.get('power_kw') or data.get('power'),
+        "vibration_g": data.get('vibration_g') or data.get('vibration'),
+        "lining_health": data.get('lining_health') or data.get('lining'),
+        "error": float(error),
+        "status": status
+    }
+    
+    if status == "anomaly":
+        alert_history.insert(0, entry) # Keep newest first
+        # Persistent log to file
+        with open(LOG_FILE, "a") as f:
+            import json
+            f.write(json.dumps(entry) + "\n")
+    return entry
 
 @app.on_event("startup")
 async def load_ml_models():
@@ -71,14 +94,14 @@ async def load_ml_models():
 
     # Load Dataset for Streaming
     try:
-        dataset_path = os.path.join(base_dir, 'combined_dataset_validation.csv')
+        dataset_path = os.path.join(base_dir, 'foundry_test_dataset.csv')
         if os.path.exists(dataset_path):
             global dataset
             # Load only a subset to be safe with memory
             dataset = pd.read_csv(dataset_path).head(1000)
-            logger.info(f"Loaded {len(dataset)} rows from validation dataset for streaming.")
+            logger.info(f"Loaded {len(dataset)} rows from test dataset for streaming.")
         else:
-            logger.warning(f"Validation dataset not found at: {dataset_path}")
+            logger.warning(f"Test dataset not found at: {dataset_path}")
     except Exception as e:
         logger.error(f"Error loading dataset: {str(e)}")
 
@@ -101,9 +124,12 @@ async def simulate_what_if(data: SimulationInput):
         }
 
     try:
+        # Scale Fix: if lining is provided as percentage (10-100), convert to fraction (0.1-1.0)
+        lining_val = data.lining / 100.0 if data.lining > 1.0 else data.lining
+        
         # 1. melt_temp, 2. power_kw, 3. vibration_g, 4. lining_health, 5. humidity, 6. ambient_temp
         # Humidity and Ambient temp are kept constant at averages (e.g. 45%, 35°C)
-        single_reading = [data.temp, data.power, data.vibration, data.lining, 45.0, 35.0]
+        single_reading = [data.temp, data.power, data.vibration, lining_val, 45.0, 35.0]
         
         # Create a stable sequence of 30 timesteps
         window = np.array([single_reading for _ in range(SEQUENCE_LENGTH)])
@@ -118,8 +144,16 @@ async def simulate_what_if(data: SimulationInput):
         # Calculate reconstruction error (MSE)
         error = np.mean(np.square(window_input - reconstructed))
         
-        # Determine status
-        status = "anomaly" if error > threshold else "normal"
+        # Determine status (Safe/Caution/Critical)
+        if error > threshold:
+            status = "anomaly"
+        elif error > 0.4:
+            status = "caution"
+        else:
+            status = "normal"
+        
+        # Log if anomaly
+        log_alert(data.dict(), error, status)
         
         return {
             "error": float(error),
@@ -135,8 +169,24 @@ async def simulate_what_if(data: SimulationInput):
 @app.get("/api/dataset/row/{index}")
 async def get_dataset_row(index: int):
     global dataset, model, scaler, threshold
-    if dataset is None:
-        raise HTTPException(status_code=404, detail="Dataset not loaded")
+    
+    # Mock fallback if dataset not loaded
+    if dataset is None or not ML_AVAILABLE or model is None:
+        mock_row = {
+            "melt_temp": 1380 + (index % 100),
+            "power_kw": 800 + (index % 50),
+            "vibration_g": 0.03 + (index % 10) * 0.001,
+            "lining_health": 0.8 - (index % 200) * 0.001,
+            "humidity": 45.0,
+            "ambient_temp": 30.0
+        }
+        fake_error = 0.85 if mock_row['melt_temp'] > 1430 else 0.15
+        return {
+            "row": mock_row,
+            "error": fake_error,
+            "threshold": threshold,
+            "status": "anomaly" if fake_error > threshold else "normal"
+        }
     
     if index < 0 or index >= len(dataset):
         raise HTTPException(status_code=400, detail="Index out of range")
@@ -162,7 +212,17 @@ async def get_dataset_row(index: int):
         
         reconstructed = model.predict(window_input, verbose=0)
         error = np.mean(np.square(window_input - reconstructed))
-        status = "anomaly" if error > threshold else "normal"
+        
+        # 3-tier status
+        if error > threshold:
+            status = "anomaly"
+        elif error > 0.4:
+            status = "caution"
+        else:
+            status = "normal"
+            
+        # Log to file if anomaly
+        log_alert(row, error, status)
         
         return {
             "row": row,
@@ -171,12 +231,18 @@ async def get_dataset_row(index: int):
             "status": status
         }
     except Exception as e:
+        logger.error(f"Row processing failed: {str(e)}")
         return {
             "row": row,
             "error": 0.0,
             "status": "error",
             "message": str(e)
         }
+
+
+@app.get("/api/alerts")
+async def get_alerts():
+    return alert_history[:50]
 
 
 @app.websocket("/ws/stream")
@@ -191,4 +257,5 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         logger.info(f"Client disconnected: {str(e)}")
 
-# To run: uvicorn main:app --reload --port 8000
+# To run: uvicorn main:app --reload --port 8000 
+
