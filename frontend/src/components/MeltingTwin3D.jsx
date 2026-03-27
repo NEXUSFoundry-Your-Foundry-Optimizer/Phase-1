@@ -77,27 +77,27 @@ const FurnaceAssembly = ({ anomaly }) => {
 
 export default function MeltingTwin3D({ temp, anomaly }) {
   return (
-    // The container holds the dark background and relative positioning for the UI
-    <div className="w-full h-full min-h-[500px] bg-bgMain rounded-xl relative overflow-hidden border border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+    // The container holds the peach background and relative positioning for the UI
+    <div className="w-full h-full min-h-[500px] bg-[#FFDAB9] rounded-xl relative overflow-hidden border border-orange-200 shadow-[0_0_30px_rgba(0,0,0,0.2)]">
       
       {/* HTML UI Overlay - Placed absolutely over the 3D Canvas */}
       <div className="absolute top-6 left-6 z-10 pointer-events-none">
-        <p className="text-brandOrange font-mono text-xs tracking-widest mb-1 uppercase">Nexus-Foundry | Digital Twin</p>
+        <p className="text-orange-900 font-mono text-xs tracking-widest mb-1 uppercase opacity-80">Nexus-Foundry | Digital Twin</p>
         <div className="flex items-center space-x-2 mt-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${anomaly ? 'bg-red-500 animate-pulse shadow-[0_0_10px_#ef4444]' : 'bg-green-500'}`}></div>
-          <h2 className={`${anomaly ? 'text-red-500' : 'text-green-500'} font-bold text-sm tracking-widest uppercase`}>
+          <div className={`w-2.5 h-2.5 rounded-full ${anomaly ? 'bg-red-600 animate-pulse shadow-[0_0_10px_#dc2626]' : 'bg-green-600'}`}></div>
+          <h2 className={`${anomaly ? 'text-red-700' : 'text-green-700'} font-bold text-sm tracking-widest uppercase`}>
             {anomaly ? 'Furnace 3 : Critical Status' : 'Furnace 3 : Operational'}
           </h2>
         </div>
-        <p className="text-white/40 text-[10px] mt-1 font-mono">CORE_TEMP: {temp}°C</p>
+        <p className="text-orange-900/60 text-[10px] mt-1 font-mono">CORE_TEMP: {temp}°C</p>
       </div>
 
       {/* The 3D Render Canvas */}
       <Canvas camera={{ position: [0, 3, 7], fov: 45 }}>
-        <color attach="background" args={['#140800']} />
+        <color attach="background" args={['#FFDAB9']} />
         
         {/* Lighting setup to highlight the copper and metal */}
-        <ambientLight intensity={0.3} />
+        <ambientLight intensity={0.5} />
         <pointLight position={[5, 5, 5]} intensity={2} color="#ffffff" />
         <pointLight position={[-5, 5, -5]} intensity={1} color="#b87333" />
         
@@ -114,7 +114,7 @@ export default function MeltingTwin3D({ temp, anomaly }) {
 
         {/* Post-processing: The Bloom effect makes toneMapped={false} materials glow */}
         <EffectComposer disableNormalPass>
-          <Bloom luminanceThreshold={1} mipmapBlur intensity={2.0} />
+          <Bloom luminanceThreshold={1} mipmapBlur intensity={1.5} />
         </EffectComposer>
       </Canvas>
     </div>

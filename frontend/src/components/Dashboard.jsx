@@ -26,6 +26,13 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simResult, setSimResult] = useState(null);
 
+  // Phase 4: Tab & Stream State
+  const [activeTab, setActiveTab] = useState('manual');
+  const [streamIndex, setStreamIndex] = useState(0);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamData, setStreamData] = useState(null);
+  const [streamLoading, setStreamLoading] = useState(false);
+
   const handleSimulate = async () => {
     setIsSimulating(true);
     setSimResult(null);
@@ -59,6 +66,28 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
     }
   };
 
+  // Phase 4: Streaming Logic
+  useEffect(() => {
+    let interval;
+    if (isStreaming) {
+      interval = setInterval(async () => {
+        setStreamLoading(true);
+        try {
+          const response = await fetch(`http://localhost:8000/api/dataset/row/${streamIndex}`);
+          const data = await response.json();
+          setStreamData(data);
+          setHasAnomaly(data.status === 'anomaly');
+          setStreamIndex(prev => (prev + 1) % 1000); // Loop back or stop
+        } catch (error) {
+          console.error("Streaming Error:", error);
+        } finally {
+          setStreamLoading(false);
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [isStreaming, streamIndex, setHasAnomaly]);
+
   const chartData = {
     labels: Array.from({length: 24}, (_, i) => `${i}:00`),
     error: Array.from({length: 24}, (_, i) => i < 18 ? 0.03 + Math.random()*0.02 : 0.05 + Math.pow(i-17, 2)*0.004),
@@ -91,6 +120,22 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
     >
       <HeroSection metrics={metrics} />
       
+      {/* Tab Switcher */}
+      <div className="flex space-x-4 border-b border-gray-800 pb-px">
+        <button 
+          onClick={() => setActiveTab('manual')}
+          className={`pb-4 px-2 text-sm font-bold transition-all ${activeTab === 'manual' ? 'text-[#f97316] border-b-2 border-[#f97316]' : 'text-gray-500 hover:text-white'}`}
+        >
+          MANUAL SIMULATION
+        </button>
+        <button 
+          onClick={() => setActiveTab('stream')}
+          className={`pb-4 px-2 text-sm font-bold transition-all ${activeTab === 'stream' ? 'text-[#f97316] border-b-2 border-[#f97316]' : 'text-gray-500 hover:text-white'}`}
+        >
+          LIVE DATASET STREAM
+        </button>
+      </div>
+
       <ArchitectureFlow />
 
       {hasAnomaly && (
@@ -101,38 +146,113 @@ const Dashboard = ({ setActivePage, hasAnomaly, setHasAnomaly }) => {
         >
           <div className="flex items-center space-x-3">
             <div className="w-3 h-3 bg-[#ef4444] rounded-full"></div>
-            <span className="text-[#ef4444] font-bold uppercase tracking-widest text-sm">CRITICAL: Lining Degradation Detected</span>
+            <span className="text-[#ef4444] font-bold uppercase tracking-widest text-sm">
+              {activeTab === 'stream' ? 'ALERT: RECONFIGURE TEMP IN MELTING TWIN' : 'CRITICAL: Lining Degradation Detected'}
+            </span>
           </div>
           <button 
             onClick={() => setActivePage('alert')}
             className="bg-[#ef4444] hover:bg-red-500 text-white font-bold py-2 px-6 rounded transition shadow-lg shadow-red-900/50"
           >
-            View Full Analysis
+            {activeTab === 'stream' ? 'Review Log' : 'View Full Analysis'}
           </button>
         </motion.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <AnalyticsPanel 
-            errorScore={chartData.error[23].toFixed(4)} 
-            threshold={simResult ? simResult.threshold : 0.7796} 
-            chartData={chartData} 
-          />
-          <SimulationBlock 
-            inputs={simInputs} 
-            setInputs={setSimInputs} 
-            isSimulating={isSimulating}
-            simResult={simResult}
-            handleSimulate={handleSimulate}
-            setSimResult={setSimResult}
-          />
-        </div>
+      {activeTab === 'manual' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <AnalyticsPanel 
+              errorScore={chartData.error[23].toFixed(4)} 
+              threshold={simResult ? simResult.threshold : 0.7796} 
+              chartData={chartData} 
+            />
+            <SimulationBlock 
+              inputs={simInputs} 
+              setInputs={setSimInputs} 
+              isSimulating={isSimulating}
+              simResult={simResult}
+              handleSimulate={handleSimulate}
+              setSimResult={setSimResult}
+            />
+          </div>
 
-        <div className="lg:col-span-1">
-          <MeltingTwin3D temp={simInputs.temp} anomaly={simResult ? simResult.status === 'anomaly' : hasAnomaly} />
+          <div className="lg:col-span-1">
+            <MeltingTwin3D temp={simInputs.temp} anomaly={simResult ? simResult.status === 'anomaly' : hasAnomaly} />
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-[#281105] border border-gray-800 rounded-xl p-6 relative overflow-hidden">
+               <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Live Stream Controller</h3>
+                    <p className="text-[#9CA3AF] text-xs mt-1">Reading combined_dataset_validation.csv @ 0.5Hz</p>
+                  </div>
+                  <div className="flex space-x-3">
+                    <button 
+                      onClick={() => setIsStreaming(true)}
+                      disabled={isStreaming}
+                      className={`px-6 py-2 rounded font-bold transition ${isStreaming ? 'bg-gray-800 text-gray-500' : 'bg-[#f97316] hover:bg-orange-600 text-white shadow-lg'}`}
+                    >
+                      START STREAM
+                    </button>
+                    <button 
+                      onClick={() => setIsStreaming(false)}
+                      disabled={!isStreaming}
+                      className={`px-6 py-2 rounded font-bold transition ${!isStreaming ? 'bg-gray-800 text-gray-500' : 'bg-red-600 hover:bg-red-700 text-white shadow-lg'}`}
+                    >
+                      STOP
+                    </button>
+                  </div>
+               </div>
+
+               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+                  {[
+                    { label: "Current Row", val: streamIndex, color: "text-[#f97316]" },
+                    { label: "Melt Temp", val: streamData?.row?.melt_temp?.toFixed(1) || '--', unit: "°C" },
+                    { label: "Power", val: streamData?.row?.power_kw?.toFixed(1) || '--', unit: "kW" },
+                    { label: "Lining Health", val: streamData?.row?.lining_health ? (streamData.row.lining_health * 100).toFixed(1) : '--', unit: "%" },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-black/20 p-4 rounded-lg border border-white/5">
+                      <p className="text-gray-500 text-[10px] uppercase tracking-tighter mb-1">{stat.label}</p>
+                      <p className={`text-xl font-bold ${stat.color || 'text-white'}`}>
+                        {stat.val}<span className="text-xs font-normal ml-1 opacity-50">{stat.unit}</span>
+                      </p>
+                    </div>
+                  ))}
+               </div>
+
+               <div className="mt-8 border-t border-white/5 pt-6 flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className={`w-2 h-2 rounded-full ${isStreaming ? 'bg-green-500 animate-pulse' : 'bg-gray-600'}`}></span>
+                    <span className="text-xs font-mono text-gray-400 capitalize">{isStreaming ? 'Streaming System Online' : 'System Standby'}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-gray-500 uppercase font-mono">Model Output</p>
+                    <p className={`text-sm font-bold ${streamData?.status === 'anomaly' ? 'text-red-500' : 'text-green-500'}`}>
+                      {streamData ? streamData.status.toUpperCase() : 'NO DATA'} {(streamData?.error || 0).toFixed(4)}
+                    </p>
+                  </div>
+               </div>
+            </div>
+
+            <AnalyticsPanel 
+              errorScore={streamData ? streamData.error.toFixed(4) : "0.0000"} 
+              threshold={streamData ? streamData.threshold : 0.7796} 
+              chartData={chartData} 
+            />
+          </div>
+
+          <div className="lg:col-span-1">
+            <MeltingTwin3D 
+              temp={streamData?.row?.melt_temp || simInputs.temp} 
+              anomaly={streamData ? streamData.status === 'anomaly' : hasAnomaly} 
+            />
+          </div>
+        </div>
+      )}
 
       {/* Disabled Future Modules */}
       <div className="mt-12 pt-8 border-t border-gray-800">

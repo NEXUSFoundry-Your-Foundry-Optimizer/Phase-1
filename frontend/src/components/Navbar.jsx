@@ -58,7 +58,12 @@ const Navbar = ({ activePage, setActivePage, hasAnomaly }) => {
               <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
             </svg>
             {hasAnomaly && (
-              <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#ef4444] ring-2 ring-[#281105] pulse-red" />
+              <>
+                <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-[#ef4444] ring-2 ring-[#281105] pulse-red" />
+                <div className="absolute top-10 right-0 bg-red-600 text-white text-[10px] p-2 rounded shadow-xl whitespace-nowrap z-50 animate-bounce">
+                  ALERT: RECONFIGURE TEMP IN MELTING TWIN
+                </div>
+              </>
             )}
           </div>
         </div>
